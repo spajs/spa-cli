@@ -1,0 +1,22 @@
+{
+  "name": "spa-cli",
+  "version": "1.3.0",
+  "description": "SPA CLI to create SPA JS (https://spa.js.org) App and Components with default content",
+  "main": "spa-cli.js",
+  "bin": {
+    "spa-cli": "spa-cli.js"
+  },
+  "keywords": [
+    "SPA-CLI, SPA CLI, SPA JS CLI"
+  ],
+  "author": "Kumar",
+  "license": "MIT",
+  "dependencies": {
+    "archiver": "^2.1.1",
+    "download": "^6.2.5",
+    "extract-zip": "^1.6.6",
+    "file-exists": "^5.0.1",
+    "minimist": "^1.2.0",
+    "moment": "^2.20.1"
+  }
+}
