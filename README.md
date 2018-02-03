@@ -49,5 +49,26 @@ OR
 ## Update SPA JS Bundle
 > spa-cli appName --update
 ---
+## LiveServer Options
+Start LiveServer for an app using --start option at the end
+Example:
+> spa-cli appName --start
+
+Along with --start option use --ch OR --chrome OR --ff OR --firefox OR --ie OR --iexplore to open respective browser.
+
+Example:
+> spa-cli appName --start --ch
+
+> spa-cli appName --start --chrome
+
+> spa-cli appName --start --ff
+
+> spa-cli appName --start --firefox
+
+> spa-cli appName --start --ie
+
+> spa-cli appName --start --iexplore
+
+---
 # LINKS
 [SPA JS (Web)](https://spa.js.org) | [SPA JS (GitHub)](https://github.com/sucom/SPA.js)
