@@ -50,7 +50,12 @@ OR
 > spa-cli appName --update
 ---
 ## LiveServer Options
-Start LiveServer for an app using --start option at the end
+###Requires live-server (run install command as root/Administrator)
+> npm install -g live-server
+
+
+To start LiveServer for an app, use --start option at the end of spa-cli command.
+
 Example:
 > spa-cli appName --start
 
