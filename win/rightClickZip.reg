@@ -4,4 +4,4 @@ Windows Registry Editor Version 5.00
 @="Zip-Now"
 
 [HKEY_CLASSES_ROOT\Directory\shell\Zip-Now\command]
-@="c:\\spa-cli\\zip.cmd %1 --zip"
+@="c:\\spa-cli\\command.cmd %1 --zip"

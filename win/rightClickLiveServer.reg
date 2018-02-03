@@ -1,0 +1,7 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CLASSES_ROOT\Directory\shell\Live-Server]
+@="Live-Server Start"
+
+[HKEY_CLASSES_ROOT\Directory\shell\Live-Server\command]
+@="c:\\spa-cli\\command.cmd %1 --start"

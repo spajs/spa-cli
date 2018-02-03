@@ -9,7 +9,6 @@ var args            = require('minimist')(process.argv.slice(2)),
     fileExists      = require('file-exists'),
     moment          = require('moment'),
     net             = require('net'),
-    liveServer      = require('live-server'),
     argv            = args._,
     urlAppBundle    = 'https://spa.js.org/seed-bundle/spa-app.zip',
     urlCompBundle   = 'https://spa.js.org/seed-bundle/spa-component.zip',
@@ -23,8 +22,10 @@ var args            = require('minimist')(process.argv.slice(2)),
 if (args['zip']) {
   appName = argv[0];
   zipApp();
-} else if (args['reg']) {
-  regRightClick();
+} else if (args['reg'] || args['regzip']) {
+  regRightClickZip();
+} else if (args['regls']) {
+  regRightClickLiveServer();
 } else if (args['update']) {
   appName = argv[0];
   updateSpaJs();
@@ -93,33 +94,44 @@ function getFreePort(callbackFn){
 
 function liveServerStart( cbFn ){
   if (appName) {
-    getFreePort(function(err, appPort) {
-      if (err) {
-        if (cbFn) cbFn();
-        throw err;
+    try {
+      console.log('Starting Live Server ... ...');
+      var liveServer = require('live-server');
+      if (liveServer) {
+        getFreePort(function(err, appPort) {
+          if (err) {
+            if (cbFn) cbFn();
+            throw err;
+          }
+          var defBrowser = (args['ch'] || args['chrome'])? 'chrome' : ((args['ff'] || args['firefox'])? 'firefox' : ((args['ie'] || args['iexplore'])? 'iexplore' : '')),
+              serverOptions = {
+                port: appPort, // Set the server port. Defaults to 8080.
+                host: "0.0.0.0", // Set the address to bind to. Defaults to 0.0.0.0 or process.env.IP.
+                root: path.resolve(appName), // Set root directory that's being served. Defaults to cwd.
+                browser: defBrowser,
+                open: true, // When false, it won't load your browser by default.
+                ignore: '', // comma-separated string for paths to ignore
+                file: "index.html", // When set, serve this file (server root relative) for every 404 (useful for single-page applications)
+                logLevel: 2 // 0 = errors only, 1 = some, 2 = lots
+              };
+          liveServer.start(serverOptions);
+          if (cbFn) cbFn();
+        });
+      } else {
+        console.log('Missing live-server module.\nInstall live-server and try again.\nlive-server install command:> npm install -g live-server');
       }
-      var defBrowser = (args['ch'] || args['chrome'])? 'chrome' : ((args['ff'] || args['firefox'])? 'firefox' : ((args['ie'] || args['iexplore'])? 'iexplore' : '')),
-          serverOptions = {
-            port: appPort, // Set the server port. Defaults to 8080.
-            host: "0.0.0.0", // Set the address to bind to. Defaults to 0.0.0.0 or process.env.IP.
-            root: path.resolve(appName), // Set root directory that's being served. Defaults to cwd.
-            browser: defBrowser,
-            open: true, // When false, it won't load your browser by default.
-            ignore: '', // comma-separated string for paths to ignore
-            file: "index.html", // When set, serve this file (server root relative) for every 404 (useful for single-page applications)
-            logLevel: 2 // 0 = errors only, 1 = some, 2 = lots
-          };
-      liveServer.start(serverOptions);
-      if (cbFn) cbFn();
-    });
+    } catch(e){
+      console.log(e);
+      console.log('----------------------------------------\nInstall live-server and try again.\nlive-server install command:> npm install -g live-server');
+      console.log('NOTE: you may need to run install command as root/Administrator.')
+    }
   } else {
     showUsage();
   }
 }
 //--------------------------------------------------------------------
-
-function regRightClick(){
-  unzip(path.resolve(spaCliRootFldr, 'win', 'rightClickZip.zip'),
+function regRightClickZip(){
+  unzip(path.resolve(spaCliRootFldr, 'win', 'spaclicmdreg.zip'),
        {dir: path.resolve('c:\\', 'spa-cli') }, function(){
     const { exec  } = require('child_process');
     var regCmd = path.resolve(spaCliRootFldr, 'win', 'rightClickZip.reg');
@@ -131,7 +143,20 @@ function regRightClick(){
     });
   });
 }
-
+function regRightClickLiveServer(){
+  unzip(path.resolve(spaCliRootFldr, 'win', 'spaclicmdreg.zip'),
+       {dir: path.resolve('c:\\', 'spa-cli') }, function(){
+    const { exec  } = require('child_process');
+    var regCmd = path.resolve(spaCliRootFldr, 'win', 'rightClickLiveServer.reg');
+    exec(regCmd, (err) => {
+      if (err) {
+        throw err;
+      }
+      console.log('Folder Context-Menu [Live-Server Start] has been registered.');
+    });
+  });
+}
+//--------------------------------------------------------------------
 function zipApp(){
   if (appName) {
     appName = appName.substring(appName.lastIndexOf('\\')+1);
@@ -153,7 +178,7 @@ function zipApp(){
     archive.finalize();
   }
 }
-
+//--------------------------------------------------------------------
 function createApp(){
   fs.mkdir(appName, (err)=>{
     if (err) {
