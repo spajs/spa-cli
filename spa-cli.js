@@ -195,9 +195,9 @@ function isValidComponent(componentName){
       hasInvalidChars   = (componentName.replace(/[a-z0-9]/gi, '')).length,
       isReservedName    = (reservedCompNames.indexOf(componentName)>=0);
   if (hasInvalidChars) {
-    console.log('Invalid component name [componentName]. Component name must be alpha-numeric ONLY.');
+    console.log('Invalid component name ['+componentName+']. Component name must be alpha-numeric ONLY.');
   } else if (isReservedName) {
-    console.log('Invalid component name [componentName]. Component name is reserved. Use any name other than ['+reservedCompNames+'].');
+    console.log('Invalid component name ['+componentName+']. Component name is reserved. Use any name other than ['+reservedCompNames+'].');
   } else {
     isValid = true;
   }
