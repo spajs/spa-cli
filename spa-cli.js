@@ -8,6 +8,8 @@ var args            = require('minimist')(process.argv.slice(2)),
     unzip           = require('extract-zip'),
     fileExists      = require('file-exists'),
     moment          = require('moment'),
+    net             = require('net'),
+    liveServer      = require('live-server'),
     argv            = args._,
     urlAppBundle    = 'https://spa.js.org/seed-bundle/spa-app.zip',
     urlCompBundle   = 'https://spa.js.org/seed-bundle/spa-component.zip',
@@ -26,7 +28,8 @@ if (args['zip']) {
 } else if (args['update']) {
   appName = argv[0];
   updateSpaJs();
-} else {
+}
+else {
   switch (argv.length) {
     case 1:
       var appNameComponents = argv[0].split('/', 2);
@@ -42,19 +45,78 @@ if (args['zip']) {
     break;
 
     default: //no arguments. show usage
-      fs.readFile(path.resolve(__dirname, 'README.md'), function(err, data){
-        console.log(data.toString());
-      });
+      showUsage();
     break;
   }
 }
 
 //=================================================================
+function showUsage() {
+  fs.readFile(path.resolve(__dirname, 'README.md'), function(err, data){
+    console.log(data.toString());
+  });
+}
+
 function logMsg(msg, clear) {
   if (clear===0) console.log('');
   process.stdout.write(msg);
   if (clear===1) console.log('');
 }
+//--------------------------------------------------------------------
+function getFreePort(callbackFn){
+  var server = net.createServer(),
+      calledFn = false,
+      callback = function(err, port){
+        if (!calledFn) {
+          calledFn = true;
+          callbackFn(err, port);
+        }
+      };
+
+  server.on('error', function(err){
+    server.close();
+    callback(err);
+  });
+
+  server.listen(0, function(){
+    var port = server.address().port;
+    server.close();
+    if (!calledFn) {
+      if (port) {
+        callback(null, port);
+      } else {
+        callback(new Error('Unable to get the server port'));
+      }
+    }
+  });
+}
+
+function liveServerStart( cbFn ){
+  if (appName) {
+    getFreePort(function(err, appPort) {
+      if (err) {
+        if (cbFn) cbFn();
+        throw err;
+      }
+      var defBrowser = (args['ch'] || args['chrome'])? 'chrome' : ((args['ff'] || args['firefox'])? 'firefox' : ((args['ie'] || args['iexplore'])? 'iexplore' : '')),
+          serverOptions = {
+            port: appPort, // Set the server port. Defaults to 8080.
+            host: "0.0.0.0", // Set the address to bind to. Defaults to 0.0.0.0 or process.env.IP.
+            root: path.resolve(appName), // Set root directory that's being served. Defaults to cwd.
+            browser: defBrowser,
+            open: true, // When false, it won't load your browser by default.
+            ignore: '', // comma-separated string for paths to ignore
+            file: "index.html", // When set, serve this file (server root relative) for every 404 (useful for single-page applications)
+            logLevel: 2 // 0 = errors only, 1 = some, 2 = lots
+          };
+      liveServer.start(serverOptions);
+      if (cbFn) cbFn();
+    });
+  } else {
+    showUsage();
+  }
+}
+//--------------------------------------------------------------------
 
 function regRightClick(){
   unzip(path.resolve(spaCliRootFldr, 'win', 'rightClickZip.zip'),
@@ -96,8 +158,12 @@ function createApp(){
   fs.mkdir(appName, (err)=>{
     if (err) {
       if (err.code === 'EEXIST') {
-        console.error('Application already exists!');
-        if (componentNames) { createComponents(); }
+        console.log('Application already exists!');
+        if (args['start']) {
+          liveServerStart( createComponents );
+        } else {
+          createComponents();
+        }
         return;
       }
       throw err;
@@ -120,9 +186,9 @@ function createApp(){
 }
 
 function downloadNewSpaApp(){
-  logMsg('Downloading SPA App boilerplate ... ', 0);
+  logMsg('Downloading SPA App boilerplate ... ', 1);
   download(urlAppBundle, spaDownloadFldr).then(()=>{
-    logMsg('... Done.', 1);
+    logMsg('Downloaded SPA App boilerplate.', 1);
     extractAndBuildSpaApp();
   });
 }
@@ -131,16 +197,23 @@ function extractAndBuildSpaApp(){
   var appRootFldr = path.resolve(appName);
   unzip(appZipFile, {dir: appRootFldr}, function(){
     console.log('SPA ['+appName+'] is ready.');
-    updateSpaJs();
-    createComponents();
+    if (args['start']) {
+      liveServerStart(function(){
+        updateSpaJs();
+        createComponents();
+      });
+    } else {
+      updateSpaJs();
+      createComponents();
+    }
   });
 }
 
 function updateSpaJs() {
   var appRootFldr = path.resolve(appName);
-  logMsg('Downloading Latest SPA JS bundle ... ', 0);
+  logMsg('Downloading Latest SPA JS bundle ... ', 1);
   download(urlSpaJsBundle, path.resolve(appRootFldr, 'xlib', 'spa')).then(()=>{
-    logMsg('... Done.', 1);
+    logMsg('Downloaded Latest SPA JS bundle.', 1);
   });
 }
 
@@ -162,9 +235,9 @@ function createComponents(){
 }
 
 function downloadNewSpaComponent(){
-  logMsg('Downloading SPA Component boilerplate ... ',0);
+  logMsg('Downloading SPA Component boilerplate ... ',1);
   download(urlCompBundle, spaDownloadFldr).then(()=>{
-    logMsg('... Done.', 1);
+    logMsg('Downloaded SPA Component boilerplate.',1);
     unzip(compZipFile, {dir: path.resolve(spaDownloadFldr, 'componentX') }, function(){
       createRequestedComponents();
     });
