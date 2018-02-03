@@ -1,6 +1,6 @@
 {
   "name": "spa-cli",
-  "version": "1.4.0",
+  "version": "1.4.4",
   "description": "SPA CLI to create SPA JS (https://spa.js.org) App and Components with default content",
   "main": "spa-cli.js",
   "bin": {
@@ -16,7 +16,6 @@
     "download": "^6.2.5",
     "extract-zip": "^1.6.6",
     "file-exists": "^5.0.1",
-    "live-server": "^1.2.0",
     "minimist": "^1.2.0",
     "moment": "^2.20.1",
     "net": "^1.0.2"
