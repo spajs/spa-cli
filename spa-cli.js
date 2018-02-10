@@ -161,7 +161,7 @@ function zipApp(){
   if (appName) {
     appName = appName.substring(appName.lastIndexOf('\\')+1);
     logMsg('Zipping folder: '+appName+' ... ', 0);
-    var targetFileName = appName+'-'+(moment().format('YMMDD-hhmmss')),
+    var targetFileName = appName+'-'+(moment().format('YMMDD-HHmmss')),
         output = fs.createWriteStream(targetFileName+'.zipx'),
         archive = archiver('zip', { zlib: { level: 9 } });
 
