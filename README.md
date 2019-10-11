@@ -13,6 +13,9 @@ OR
 > spa-cli appName --new
 
 ## Create a new component
+
+NOTE: Use . instead of 'appName' if 'appName' directory is current working directory.
+
 > spa-cli appName componentName
 
 OR
@@ -29,6 +32,9 @@ OR
 
 
 ## Create multiple components
+
+NOTE: Use . instead of 'appName' if 'appName' directory is current working directory.
+
 > spa-cli appName componentX,componentY
 
 OR

@@ -9,14 +9,18 @@ var args            = require('minimist')(process.argv.slice(2)),
     fileExists      = require('file-exists'),
     moment          = require('moment'),
     net             = require('net'),
+
+    appBaseBundle   = 'spa-app-base-2.0.0.zip',
+    compBaseBundle  = 'spa-component-base-2.0.0.zip',
+
     argv            = args._,
-    urlAppBundle    = 'https://spa.js.org/seed-bundle/spa-app.zip',
-    urlCompBundle   = 'https://spa.js.org/seed-bundle/spa-component.zip',
-    urlSpaJsBundle  = 'https://cdn.jsdelivr.net/gh/sucom/SPA.js@latest/dist/spa-bundle.min.js',
     spaCliRootFldr  = __dirname,
     spaDownloadFldr = path.resolve(spaCliRootFldr, 'downloads'),
-    appZipFile      = path.resolve(spaDownloadFldr, 'spa-app.zip'),
-    compZipFile     = path.resolve(spaDownloadFldr, 'spa-component.zip'),
+    urlAppBundle    = 'https://spa.js.org/seed-bundle/'+appBaseBundle,
+    urlCompBundle   = 'https://spa.js.org/seed-bundle/'+compBaseBundle,
+    appZipFile      = path.resolve(spaDownloadFldr, appBaseBundle),
+    compZipFile     = path.resolve(spaDownloadFldr, compBaseBundle),
+    urlSpaJsBundle  = 'https://cdn.jsdelivr.net/gh/sucom/SPA.js@latest/dist/spa-bundle.min.js',
     appName, componentNames, compHtmTemplate, compCssTemplate, compJsTemplate, lastLogMsg='';
 
 if (args['zip']) {
@@ -31,23 +35,17 @@ if (args['zip']) {
   updateSpaJs();
 }
 else {
-  switch (argv.length) {
-    case 1:
-      var appNameComponents = argv[0].split('/', 2);
-      appName = appNameComponents[0];
-      componentNames = appNameComponents[1];
-      createApp();
-    break;
-
-    case 2:
-      appName = argv[0];
-      componentNames = argv[1];
-      createComponents();
-    break;
-
-    default: //no arguments. show usage
-      showUsage();
-    break;
+  if (argv.length == 1) {
+    var appNameComponents = argv[0].split('/', 2);
+    appName = appNameComponents[0];
+    componentNames = appNameComponents[1];
+    createApp();
+  } else if (argv.length == 2) {
+    appName = argv[0];
+    componentNames = argv[1];
+    createComponents();
+  } else {
+    showUsage();
   }
 }
 
@@ -133,7 +131,7 @@ function liveServerStart( cbFn ){
 //--------------------------------------------------------------------
 function regRightClickZip(){
   unzip(path.resolve(spaCliRootFldr, 'win', 'spaclicmdreg.zip'),
-       {dir: path.resolve('c:\\', 'spa-cli') }, function(){
+        {dir: path.resolve('c:\\', 'spa-cli') }, function(){
     const { exec  } = require('child_process');
     var regCmd = path.resolve(spaCliRootFldr, 'win', 'rightClickZip.reg');
     exec(regCmd, (err) => {
@@ -146,7 +144,7 @@ function regRightClickZip(){
 }
 function regRightClickLiveServer(){
   unzip(path.resolve(spaCliRootFldr, 'win', 'spaclicmdreg.zip'),
-       {dir: path.resolve('c:\\', 'spa-cli') }, function(){
+        {dir: path.resolve('c:\\', 'spa-cli') }, function(){
     const { exec  } = require('child_process');
     var regCmd = path.resolve(spaCliRootFldr, 'win', 'rightClickLiveServer.reg');
     exec(regCmd, (err) => {
