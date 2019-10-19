@@ -1,10 +1,14 @@
 spa.$('componentX', {
-  style:'.',
-  data: { name: 'componentX' },
+  //style:'.', // Enable only if this component has specific styles in componentX.css
 
-  //dataUrl: '', //use this property for external data source instead of above static data property
+  target: '#targetContainer',
+
+  data: { name: 'componentX' },
+  //dataUrl: '', // use this property for external data source instead of above static data property
 
   renderCallback: function(){
+    // function called after this component is rendered.
+
     var templateData = this.$data; //or app.componentX.$data
     console.log('Component componentX has been rendered with Data:', templateData);
   },

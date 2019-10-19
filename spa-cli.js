@@ -10,8 +10,8 @@ var args            = require('minimist')(process.argv.slice(2)),
     moment          = require('moment'),
     net             = require('net'),
 
-    appBaseBundle   = 'spa-app-base-2.0.0.zip',
-    compBaseBundle  = 'spa-component-base-2.0.0.zip',
+    appBaseBundle   = 'spa-app-base.zip',
+    compBaseBundle  = 'spa-component-base.zip',
 
     argv            = args._,
     spaCliRootFldr  = __dirname,
@@ -21,7 +21,7 @@ var args            = require('minimist')(process.argv.slice(2)),
     appZipFile      = path.resolve(spaDownloadFldr, appBaseBundle),
     compZipFile     = path.resolve(spaDownloadFldr, compBaseBundle),
     urlSpaJsBundle  = 'https://cdn.jsdelivr.net/gh/sucom/SPA.js@latest/dist/spa-bundle.min.js',
-    appName, componentNames, compHtmTemplate, compCssTemplate, compJsTemplate, lastLogMsg='';
+    appName, componentNames, compHtmTemplate, compCssTemplate, compJsTemplate, customAppBundle, customCompBundle;
 
 if (args['zip']) {
   appName = argv[0];
@@ -33,6 +33,35 @@ if (args['zip']) {
 } else if (args['update']) {
   appName = argv[0];
   updateSpaJs();
+} else if (args['app']) {
+  if (args['reset']) {
+    appName = '';
+    downloadNewSpaApp();
+  } else {
+    customAppBundle = argv[0];
+    if (customAppBundle && ((/(.)+\.zip$/i).test(customAppBundle))) {
+      useCustomAppBundle();
+    } else {
+      showUsage();
+    }
+  }
+} else if (args['component']) {
+  if (args['reset']) {
+    componentNames = '';
+    downloadNewSpaComponent();
+  } else {
+    customCompBundle = argv[0];
+    if (customCompBundle && ((/(.)+\.zip$/i).test(customCompBundle))) {
+      useCustomComponentBundle();
+    } else {
+      showUsage();
+    }
+  }
+} else if (args['reset']) {
+  appName = '';
+  componentNames = '';
+  downloadNewSpaApp();
+  downloadNewSpaComponent();
 }
 else {
   if (argv.length == 1) {
@@ -218,22 +247,24 @@ function downloadNewSpaApp(){
 }
 
 function extractAndBuildSpaApp(){
-  var appRootFldr = path.resolve(appName);
-  unzip(appZipFile, {dir: appRootFldr}, function(){
-    console.log('SPA ['+appName+'] is ready.');
-    if (args['start']) {
-      liveServerStart(function(){
+  if (appName) {
+    var appRootFldr = path.resolve(appName);
+    unzip(appZipFile, {dir: appRootFldr}, function(){
+      console.log('SPA ['+appName+'] is ready.');
+      if (args['start']) {
+        liveServerStart(function(){
+          updateSpaJs();
+          createComponents();
+        });
+      } else {
         updateSpaJs();
         createComponents();
-      });
-    } else {
-      updateSpaJs();
-      createComponents();
-    }
-  });
+      }
+    });
+  }
 }
 
-function updateSpaJs() {
+function updateSpaJs(){
   var appRootFldr = path.resolve(appName);
   logMsg('Downloading Latest SPA JS bundle ... ', 1);
   download(urlSpaJsBundle, path.resolve(appRootFldr, 'xlib', 'spa')).then(()=>{
@@ -275,14 +306,36 @@ function createRequestedComponents(){
         srcCssFile  = path.resolve(srcCompFldr, 'componentX.css'),
         srcJsFile   = path.resolve(srcCompFldr, 'componentX.js');
 
-    compHtmTemplate = fs.readFileSync(srcHtmFile).toString();
-    compCssTemplate = fs.readFileSync(srcCssFile).toString();
-    compJsTemplate  = fs.readFileSync(srcJsFile).toString();
+    compJsTemplate  = '';
+    compHtmTemplate = '';
+    compCssTemplate = '-SKIP-';
 
-    var componentsArray = componentNames.split(',');
-    componentsArray.forEach(componentName => {
-      createComponent(componentName);
+    fileExists(srcJsFile, (err, exists) => {
+      if (exists) {
+        compJsTemplate  = fs.readFileSync(srcJsFile).toString();
+      }
+
+      fileExists(srcHtmFile, (err, exists) => {
+        if (exists) {
+          compHtmTemplate = fs.readFileSync(srcHtmFile).toString();
+        }
+
+        fileExists(srcCssFile, (err, exists) => {
+          if (exists) {
+            compCssTemplate = fs.readFileSync(srcCssFile).toString()
+          }
+
+          var componentsArray = componentNames.split(',');
+          componentsArray.forEach(componentName => {
+            createComponent(componentName);
+          });
+
+        });
+
+      });
+
     });
+
   }
 }
 
@@ -327,9 +380,11 @@ function createComponent(componentName){
       console.log('Creating a new component: '+componentName);
 
       //Create css
-      fs.writeFile(newCssFile, compCSS, function(err){
-        if (err) throw err;
-      });
+      if (compCSS != '-SKIP-') {
+        fs.writeFile(newCssFile, compCSS, function(err){
+          if (err) throw err;
+        });
+      }
 
       //create html
       fs.writeFile(newHtmFile, compHTM, function(err){
@@ -344,4 +399,45 @@ function createComponent(componentName){
     });
 
   }//isValid componentName
+}
+
+//-----------------------------------------------
+function useCustomAppBundle(){
+  if (customAppBundle) {
+    logMsg('Updating Component Bundle with '+customAppBundle+'', 1);
+    var customAppBundleSrc = path.resolve(customAppBundle);
+    fileExists(customAppBundleSrc, (err, exists) => {
+      if (err) throw err;
+      if (exists) {
+        fs.copyFile(customAppBundleSrc, appZipFile, (err) => {
+          if (err) throw err;
+          logMsg('Custom App Bundle is ready to use.', 1);
+        });
+      }
+    });
+  }
+}
+
+function useCustomComponentBundle(){
+  if (customCompBundle) {
+    logMsg('Updating Component Bundle with '+customCompBundle+'', 1);
+
+    var customCompBundleSrc = path.resolve(customCompBundle);
+    fileExists(customCompBundleSrc, (err, exists) => {
+      if (err) throw err;
+      if (exists) {
+        var srcCompFldr = path.resolve(spaDownloadFldr, 'componentX')
+          , oldCssFile  = path.resolve(srcCompFldr, 'componentX.css');
+        try {
+          fs.unlinkSync(oldCssFile);
+        } catch(err) { }
+        unzip(customCompBundleSrc, {dir: path.resolve(spaDownloadFldr, 'componentX') }, function(){
+          fs.copyFile(customCompBundleSrc, compZipFile, (err) => {
+            if (err) throw err;
+            logMsg('Custom Component Bundle is ready to use.', 1);
+          });
+        });
+      }
+    });
+  }
 }
