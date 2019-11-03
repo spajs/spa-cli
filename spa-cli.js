@@ -65,9 +65,9 @@ if (args['zip']) {
 }
 else {
   if (argv.length == 1) {
-    var appNameComponents = argv[0].split('/', 2);
-    appName = appNameComponents[0];
-    componentNames = appNameComponents[1];
+    var appNameComponents = argv[0].split('/');
+    appName = appNameComponents.shift();
+    componentNames = appNameComponents.join('/');
     createApp();
   } else if (argv.length == 2) {
     appName = argv[0];
@@ -341,34 +341,74 @@ function createRequestedComponents(){
 
 function isValidComponent(componentName){
   var isValid = false,
-      reservedCompNames = 'api,debug,lang,utils',
-      hasInvalidChars   = (componentName.replace(/[a-z0-9]/gi, '')).length,
+      reservedCompNames = 'api,debug,lang',
+      hasInvalidChars   = (/[^a-z0-9\/]/gi).test(componentName),
       isReservedName    = (reservedCompNames.indexOf(componentName)>=0);
   if (hasInvalidChars) {
-    console.log('Invalid component name ['+componentName+']. Component name must be alpha-numeric ONLY.');
+    console.log('Invalid component name ['+componentName+']. Component name must be alpha-numeric ONLY [a-z A-Z 0-9].');
+  } else if (!(/^([a-z])/i.test(componentName))) {
+    console.log('Invalid component name ['+componentName+']. Component name must begin with alphabet [a-z A-Z].');
   } else if (isReservedName) {
     console.log('Invalid component name ['+componentName+']. Component name is reserved. Use any name other than ['+reservedCompNames+'].');
-  } else {
+  }  else {
     isValid = true;
   }
   return isValid;
 }
 
+function createParentFolder(folderPath){
+  if (folderPath) {
+    folderPathArr = folderPath.substring(folderPath.indexOf(':')+1).replace(/\\/g,'/').split('/');
+    var pFldr='/';
+    for(var idx=0; idx<folderPathArr.length-1; idx++){
+      if (folderPathArr[idx]) {
+        pFldr = path.resolve(pFldr, folderPathArr[idx]);
+        try {
+          fs.mkdirSync(pFldr, (err)=>{
+            if (err) {
+              if (err.code === 'EEXIST') {
+                return;
+              } else if (err.code === 'ENOENT') {
+                console.error('Folder ['+pFldr+'] not found!');
+                return;
+              }
+              throw err;
+            }
+            return;
+          });
+
+        } catch(e){};
+
+      }
+    }
+  }
+}
+
 function createComponent(componentName){
   if (isValidComponent(componentName)) {
-    var newCompFldr = path.resolve(appName, 'app', 'components', componentName),
-        newHtmFile  = path.resolve(newCompFldr, componentName+'.html'),
-        newCssFile  = path.resolve(newCompFldr, componentName+'.css'),
-        newJsFile   = path.resolve(newCompFldr, componentName+'.js');
+    componentName = componentName.replace(/[^a-z0-9]/gi, '_');
+    var componentPath = componentName.replace(/[^a-z0-9]/gi, '/'),
+        newCompFldr   = path.resolve(appName, 'app', 'components', componentPath),
+        componentFile = componentName;
 
-    var compHTM = compHtmTemplate.replace(/componentX/g, componentName),
-        compCSS = compCssTemplate.replace(/componentX/g, componentName),
-        compJS  = compJsTemplate.replace(/componentX/g, componentName);
+    if ((/[^a-z0-9]/gi).test(componentName)) {
+      var xPath = componentName.split('_');
+      componentFile = xPath[xPath.length-1];
+    }
+    var newHtmFile   = path.resolve(newCompFldr, componentFile+'.html'),
+        newCssFile   = path.resolve(newCompFldr, componentFile+'.css'),
+        newJsFile    = path.resolve(newCompFldr, componentFile+'.js');
+
+    var compHTM = compHtmTemplate.replace(/componentXpath/g, componentPath).replace(/componentXfile/g, componentFile).replace(/componentX/g, componentName),
+        compCSS = compCssTemplate.replace(/componentXpath/g, componentPath).replace(/componentXfile/g, componentFile).replace(/componentX/g, componentName),
+        compJS  = compJsTemplate.replace(/componentXpath/g, componentPath).replace(/componentXfile/g, componentFile).replace(/componentX/g, componentName);
+
+    createParentFolder(newCompFldr);
 
     fs.mkdir(newCompFldr, (err)=>{
       if (err) {
         if (err.code === 'EEXIST') {
-          console.error('Component ['+componentName+'] already exists!');
+          console.error('Component ['+componentPath+'] already exists!');
           return;
         } else if (err.code === 'ENOENT') {
           console.error('SPA ['+appName+'] not available!');
@@ -377,7 +417,7 @@ function createComponent(componentName){
         }
         throw err;
       }
-      console.log('Creating a new component: '+componentName);
+      console.log('Creating a new component: '+componentPath);
 
       //Create css
       if (compCSS != '-SKIP-') {
@@ -398,7 +438,7 @@ function createComponent(componentName){
 
     });
 
-  }//isValid componentName
+  }//else (isValid=false) => Invalid componentName
 }
 
 //-----------------------------------------------
