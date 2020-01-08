@@ -20,7 +20,7 @@ var args            = require('minimist')(process.argv.slice(2)),
     urlCompBundle   = 'https://spa.js.org/seed-bundle/'+compBaseBundle,
     appZipFile      = path.resolve(spaDownloadFldr, appBaseBundle),
     compZipFile     = path.resolve(spaDownloadFldr, compBaseBundle),
-    urlSpaJsBundle  = 'https://cdn.jsdelivr.net/gh/sucom/SPA.js/dist/spa-bundle.min.js',
+    urlSpaJsBundle  = 'https://cdn.jsdelivr.net/gh/sucom/SPA.js@latest/dist/spa-bundle.min.js',
     appName, componentNames, compHtmTemplate, compCssTemplate, compJsTemplate, customAppBundle, customCompBundle;
 
 if (args['zip']) {
