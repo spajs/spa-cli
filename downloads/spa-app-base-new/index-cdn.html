@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="data:image/x-icon;base64,">
+  <title>Application Title</title>
+  <link rel="stylesheet" href="app/styles/app-style.css">
+</head>
+<body>
+
+  <div id="containerHome"></div>
+  <x-component src="footer"></x-component>
+
+  <script src="//cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"          ></script>
+  <script src="//cdn.jsdelivr.net/npm/handlebars@latest/dist/handlebars.min.js"  ></script>
+  <script src="//cdn.jsdelivr.net/gh/sucom/SPA.js@latest/dist/spa-bundle.min.js" ></script>
+
+  <script src="app/scripts/app.js"></script>
+  <script>
+    spa.onReady = function () {
+      spa.$render('home', {target: '#containerHome'});
+    };
+  </script>
+
+  </body>
+</html>
