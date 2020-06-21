@@ -16,7 +16,7 @@
     "download": "^8.0.0",
     "extract-zip": "^2.0.1",
     "file-exists": "^5.0.1",
-    "minimist": "^1.2.5",
+    "minimist": "^1.2.3",
     "moment": "^2.27.0",
     "net": "^1.0.2"
   }
