@@ -6,6 +6,12 @@ Command Line Interface (CLI) to support [Single Page Application(js)](https://sp
 ---
 #USAGE:
 
+> spa arguments
+
+OR
+
+> spa-cli arguments
+
 ## Create a new app
 > spa-cli appName
 
@@ -65,6 +71,12 @@ NOTE: The string 'componentX' will be replaced with actual componentName, includ
 
 - [sample-app-bundle](https://spa.js.org/seed-bundle/spa-app-base.zip)
 - [sample-component-bundle](https://spa.js.org/seed-bundle/spa-component-base.zip)
+
+### To create boilerplate bundle from a folder
+
+> spa-cli your-custom-boilerplate-folder --bundle
+
+This will create your-custom-boilerplate-folder.zip file. Use this zip file to update the default boilerplate for new --app or --component creation.
 
 ## Reset to default bundle
 Reset bundles with the latest boilerplate bundle(s) from SPA.js repository.

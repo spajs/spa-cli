@@ -1,27 +1,29 @@
 #!/usr/bin/env node
 
-var args            = require('minimist')(process.argv.slice(2)),
-    fs              = require('fs'),
-    path            = require('path'),
-    download        = require('download'),
-    archiver        = require('archiver'),
-    unzip           = require('extract-zip'),
-    fileExists      = require('file-exists'),
-    moment          = require('moment'),
-    net             = require('net'),
+const args            = require('minimist')(process.argv.slice(2));
+const fs              = require('fs-extra');  // Use fs-extra instead of fs + file-exists
+const path            = require('path');
+const axios           = require('axios');     // Replace download
+const archiver        = require('archiver');
+const unzip           = require('extract-zip');
+const moment          = require('moment');
+const net             = require('net');
 
-    appBaseBundle   = 'spa-app-base.zip',
-    compBaseBundle  = 'spa-component-base.zip',
+const appBaseBundle   = 'spa-app-base.zip';
+const compBaseBundle  = 'spa-component-base.zip';
 
-    argv            = args._,
-    spaCliRootFldr  = __dirname,
-    spaDownloadFldr = path.resolve(spaCliRootFldr, 'downloads'),
-    urlAppBundle    = 'https://spa.js.org/seed-bundle/'+appBaseBundle,
-    urlCompBundle   = 'https://spa.js.org/seed-bundle/'+compBaseBundle,
-    appZipFile      = path.resolve(spaDownloadFldr, appBaseBundle),
-    compZipFile     = path.resolve(spaDownloadFldr, compBaseBundle),
-    urlSpaJsBundle  = 'https://cdn.jsdelivr.net/gh/sucom/SPA.js@latest/dist/spa-bundle.min.js',
-    appName, componentNames, compHtmTemplate, compCssTemplate, compJsTemplate, customAppBundle, customCompBundle;
+const argv            = args._;
+const spaCliRootFldr  = __dirname;
+const spaDownloadFldr = path.resolve(spaCliRootFldr, 'downloads');
+const urlAppBundle    = 'https://spa.js.org/seed-bundle/'+appBaseBundle;
+const urlCompBundle   = 'https://spa.js.org/seed-bundle/'+compBaseBundle;
+const appZipFile      = path.resolve(spaDownloadFldr, appBaseBundle);
+const compZipFile     = path.resolve(spaDownloadFldr, compBaseBundle);
+const urlSpaJsBundle  = 'https://cdn.jsdelivr.net/gh/sucom/SPA.js@latest/dist/spa-bundle.min.js';
+let appName, componentNames, compHtmTemplate, compCssTemplate, compJsTemplate, customAppBundle, customCompBundle;
+
+// Ensure downloads directory exists
+fs.ensureDirSync(spaDownloadFldr);
 
 if (args['zip']) {
   appName = argv[0];
@@ -62,10 +64,13 @@ if (args['zip']) {
   componentNames = '';
   downloadNewSpaApp();
   downloadNewSpaComponent();
+} else if (args['bundle']) {
+  appName = argv[0];
+  zipBundle();
 }
 else {
   if (argv.length == 1) {
-    var appNameComponents = argv[0].split('/');
+    const appNameComponents = argv[0].split('/');
     appName = appNameComponents.shift();
     componentNames = appNameComponents.join('/');
     createApp();
@@ -92,14 +97,14 @@ function logMsg(msg, clear) {
 }
 //--------------------------------------------------------------------
 function getFreePort(callbackFn){
-  var server = net.createServer(),
-      calledFn = false,
-      callback = function(err, port){
-        if (!calledFn) {
-          calledFn = true;
-          callbackFn(err, port);
-        }
-      };
+  const server = net.createServer();
+  let calledFn = false;
+  const callback = function(err, port){
+    if (!calledFn) {
+      calledFn = true;
+      callbackFn(err, port);
+    }
+  };
 
   server.on('error', function(err){
     server.close();
@@ -107,7 +112,7 @@ function getFreePort(callbackFn){
   });
 
   server.listen(0, function(){
-    var port = server.address().port;
+    const port = server.address().port;
     server.close();
     if (!calledFn) {
       if (port) {
@@ -123,25 +128,25 @@ function liveServerStart( cbFn ){
   if (appName) {
     try {
       console.log('Starting Live Server ... ...');
-      var liveServer = require('live-server');
+      const liveServer = require('live-server');
       if (liveServer) {
         getFreePort(function(err, appPort) {
           if (err) {
             if (cbFn) cbFn();
             throw err;
           }
-          var defBrowser = (args['ch'] || args['chrome'])? 'chrome' : ((args['ff'] || args['firefox'])? 'firefox' : ((args['ie'] || args['iexplore'])? 'iexplore' : '')),
-              serverOptions = {
-                port: appPort, // Set the server port. Defaults to 8080.
-                host: "0.0.0.0", // Set the address to bind to. Defaults to 0.0.0.0 or process.env.IP.
-                root: path.resolve(appName), // Set root directory that's being served. Defaults to cwd.
-                browser: defBrowser,
-                cors: true,  //Enable CORS
-                open: true, // When false, it won't load your browser by default.
-                ignore: '', // comma-separated string for paths to ignore
-                file: "index.html", // When set, serve this file (server root relative) for every 404 (useful for single-page applications)
-                logLevel: 2 // 0 = errors only, 1 = some, 2 = lots
-              };
+          const defBrowser = (args['ch'] || args['chrome'])? 'chrome' : ((args['ff'] || args['firefox'])? 'firefox' : ((args['ie'] || args['iexplore'])? 'iexplore' : ''));
+          const serverOptions = {
+            port: appPort,
+            host: "0.0.0.0",
+            root: path.resolve(appName),
+            browser: defBrowser,
+            cors: true,
+            open: true,
+            ignore: '',
+            file: "index.html",
+            logLevel: 2
+          };
           liveServer.start(serverOptions);
           if (cbFn) cbFn();
         });
@@ -158,40 +163,49 @@ function liveServerStart( cbFn ){
   }
 }
 //--------------------------------------------------------------------
-function regRightClickZip(){
-  unzip(path.resolve(spaCliRootFldr, 'win', 'spaclicmdreg.zip'),
-        {dir: path.resolve('c:\\', 'spa-cli') }, function(){
+async function regRightClickZip(){
+  try {
+    await unzip(path.resolve(spaCliRootFldr, 'win', 'spaclicmdreg.zip'),
+          {dir: path.resolve('c:\\', 'spa-cli') });
+    
     const { exec  } = require('child_process');
-    var regCmd = path.resolve(spaCliRootFldr, 'win', 'rightClickZip.reg');
+    const regCmd = path.resolve(spaCliRootFldr, 'win', 'rightClickZip.reg');
     exec(regCmd, (err) => {
       if (err) {
         throw err;
       }
       console.log('Folder Context-Menu [Zip-Now] has been registered.');
     });
-  });
+  } catch (err) {
+    console.error('Error in regRightClickZip:', err);
+  }
 }
-function regRightClickLiveServer(){
-  unzip(path.resolve(spaCliRootFldr, 'win', 'spaclicmdreg.zip'),
-        {dir: path.resolve('c:\\', 'spa-cli') }, function(){
+
+async function regRightClickLiveServer(){
+  try {
+    await unzip(path.resolve(spaCliRootFldr, 'win', 'spaclicmdreg.zip'),
+          {dir: path.resolve('c:\\', 'spa-cli') });
+    
     const { exec  } = require('child_process');
-    var regCmd = path.resolve(spaCliRootFldr, 'win', 'rightClickLiveServer.reg');
+    const regCmd = path.resolve(spaCliRootFldr, 'win', 'rightClickLiveServer.reg');
     exec(regCmd, (err) => {
       if (err) {
         throw err;
       }
       console.log('Folder Context-Menu [Live-Server Start] has been registered.');
     });
-  });
+  } catch (err) {
+    console.error('Error in regRightClickLiveServer:', err);
+  }
 }
 //--------------------------------------------------------------------
 function zipApp(){
   if (appName) {
     appName = appName.substring(appName.lastIndexOf('\\')+1);
     logMsg('Zipping folder: '+appName+' ... ', 0);
-    var targetFileName = appName+'-'+(moment().format('YMMDD-HHmmss')),
-        output = fs.createWriteStream(targetFileName+'.zipx'),
-        archive = archiver('zip', { zlib: { level: 9 } });
+    const targetFileName = appName+'-'+(moment().format('YMMDD-HHmmss'));
+    const output = fs.createWriteStream(targetFileName+'.zipx');
+    const archive = archiver('zip', { zlib: { level: 9 } });
 
     output.on('close', function () {
       logMsg(" ... Done.", 1);
@@ -206,144 +220,231 @@ function zipApp(){
     archive.finalize();
   }
 }
+
 //--------------------------------------------------------------------
-function createApp(){
-  fs.mkdir(appName, (err)=>{
-    if (err) {
-      if (err.code === 'EEXIST') {
-        console.log('Application already exists!');
-        if (args['start']) {
-          liveServerStart( createComponents );
-        } else {
-          createComponents();
-        }
-        return;
+async function zipBundle(){
+  if (appName) {
+    appName = appName;
+    logMsg('Bundling folder: '+appName+' ... ', 0);
+
+    const targetFileName    = appName;
+    const bundleZipFile     = targetFileName+'.zip';
+    const bundleZipFilePath = path.resolve(bundleZipFile);
+
+    try {
+      const exists = await fs.pathExists(bundleZipFilePath);
+      if (exists) {
+        logMsg('Bundle ['+targetFileName+'] already found.', 0);
+      } else {
+        const output = fs.createWriteStream(bundleZipFilePath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+
+        output.on('close', function () {
+          logMsg(" ... Done.", 1);
+        });
+
+        archive.on('error', function(err){
+          throw err;
+        });
+
+        archive.pipe(output);
+        archive.directory(appName+'/', false);
+        archive.finalize();
       }
+    } catch (err) {
       throw err;
     }
+  }
+}
+//--------------------------------------------------------------------
+async function createApp(){
+  try {
+    await fs.ensureDir(appName);
     console.log('Creating a new SPA: '+appName);
 
     if (args['new']) {
-      downloadNewSpaApp();
+      await downloadNewSpaApp();
     } else {
-      fileExists(appZipFile, (err, exists) => {
-        if (err) throw err;
-        if (exists) {
-          extractAndBuildSpaApp();
-        } else {
-          downloadNewSpaApp();
-        }
-      });
-    }
-  });
-}
-
-function downloadNewSpaApp(){
-  logMsg('Downloading SPA App boilerplate ... ', 1);
-  download(urlAppBundle, spaDownloadFldr).then(()=>{
-    logMsg('Downloaded SPA App boilerplate.', 1);
-    extractAndBuildSpaApp();
-  });
-}
-
-function extractAndBuildSpaApp(){
-  if (appName) {
-    var appRootFldr = path.resolve(appName);
-    unzip(appZipFile, {dir: appRootFldr}, function(){
-      console.log('SPA ['+appName+'] is ready.');
-      if (args['start']) {
-        liveServerStart(function(){
-          updateSpaJs();
-          createComponents();
-        });
+      const exists = await fs.pathExists(appZipFile);
+      if (exists) {
+        await extractAndBuildSpaApp();
       } else {
-        updateSpaJs();
+        await downloadNewSpaApp();
+      }
+    }
+  } catch (err) {
+    if (err.code === 'EEXIST') {
+      console.log('Application already exists!');
+      if (args['start']) {
+        liveServerStart( createComponents );
+      } else {
         createComponents();
       }
-    });
+      return;
+    }
+    throw err;
   }
 }
 
-function updateSpaJs(){
-  var appRootFldr = path.resolve(appName);
-  logMsg('Downloading Latest SPA JS bundle ... ', 1);
-  download(urlSpaJsBundle, path.resolve(appRootFldr, 'xlib', 'spa')).then(()=>{
-    logMsg('Downloaded Latest SPA JS bundle.', 1);
-  });
+async function downloadNewSpaApp(){
+  logMsg('Downloading SPA App boilerplate ... ', 1);
+  try {
+    const response = await axios({
+      method: 'GET',
+      url: urlAppBundle,
+      responseType: 'stream'
+    });
+
+    const writer = fs.createWriteStream(appZipFile);
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+    });
+
+    logMsg('Downloaded SPA App boilerplate.', 1);
+    await extractAndBuildSpaApp();
+  } catch (err) {
+    console.error('Download failed:', err);
+  }
 }
 
-function createComponents(){
-  if (componentNames) {
-    if (args['new']) {
-      downloadNewSpaComponent();
-    } else {
-      fileExists(compZipFile, (err, exists) => {
-        if (err) throw err;
-        if (exists) {
-          createRequestedComponents();
-        } else {
-          downloadNewSpaComponent();
-        }
-      });
+async function extractAndBuildSpaApp(){
+  if (appName) {
+    const appRootFldr = path.resolve(appName);
+    try {
+      await unzip(appZipFile, {dir: appRootFldr});
+      console.log('SPA ['+appName+'] is ready.');
+      if (args['start']) {
+        liveServerStart(async function(){
+          await updateSpaJs();
+          await createComponents();
+        });
+      } else {
+        await updateSpaJs();
+        await createComponents();
+      }
+    } catch (err) {
+      console.error('Extraction failed:', err);
     }
   }
 }
 
-function downloadNewSpaComponent(){
-  logMsg('Downloading SPA Component boilerplate ... ',1);
-  download(urlCompBundle, spaDownloadFldr).then(()=>{
-    logMsg('Downloaded SPA Component boilerplate.',1);
-    unzip(compZipFile, {dir: path.resolve(spaDownloadFldr, 'componentX') }, function(){
-      createRequestedComponents();
+async function updateSpaJs(){
+  const appRootFldr = path.resolve(appName);
+  const spaJsPath = path.resolve(appRootFldr, 'xlib', 'spa', 'spa-bundle.min.js');
+  
+  logMsg('Downloading Latest SPA JS bundle ... ', 1);
+  try {
+    const response = await axios({
+      method: 'GET',
+      url: urlSpaJsBundle,
+      responseType: 'stream'
     });
-  });
+
+    await fs.ensureDir(path.dirname(spaJsPath));
+    const writer = fs.createWriteStream(spaJsPath);
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+    });
+
+    logMsg('Downloaded Latest SPA JS bundle.', 1);
+  } catch (err) {
+    console.error('SPA JS download failed:', err);
+  }
 }
 
-function createRequestedComponents(){
+async function createComponents(){
   if (componentNames) {
-    var srcCompFldr = path.resolve(spaDownloadFldr, 'componentX'),
-        srcHtmFile  = path.resolve(srcCompFldr, 'componentX.html'),
-        srcCssFile  = path.resolve(srcCompFldr, 'componentX.css'),
-        srcJsFile   = path.resolve(srcCompFldr, 'componentX.js');
+    if (args['new']) {
+      await downloadNewSpaComponent();
+    } else {
+      try {
+        const exists = await fs.pathExists(compZipFile);
+        if (exists) {
+          await createRequestedComponents();
+        } else {
+          await downloadNewSpaComponent();
+        }
+      } catch (err) {
+        throw err;
+      }
+    }
+  }
+}
+
+async function downloadNewSpaComponent(){
+  logMsg('Downloading SPA Component boilerplate ... ',1);
+  try {
+    const response = await axios({
+      method: 'GET',
+      url: urlCompBundle,
+      responseType: 'stream'
+    });
+
+    const writer = fs.createWriteStream(compZipFile);
+    response.data.pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on('finish', resolve);
+      writer.on('error', reject);
+    });
+
+    logMsg('Downloaded SPA Component boilerplate.',1);
+    
+    const compExtractDir = path.resolve(spaDownloadFldr, 'componentX');
+    await fs.ensureDir(compExtractDir);
+    await unzip(compZipFile, {dir: compExtractDir});
+    await createRequestedComponents();
+  } catch (err) {
+    console.error('Component download failed:', err);
+  }
+}
+
+async function createRequestedComponents(){
+  if (componentNames) {
+    const srcCompFldr = path.resolve(spaDownloadFldr, 'componentX');
+    const srcHtmFile  = path.resolve(srcCompFldr, 'componentX.html');
+    const srcCssFile  = path.resolve(srcCompFldr, 'componentX.css');
+    const srcJsFile   = path.resolve(srcCompFldr, 'componentX.js');
 
     compJsTemplate  = '';
     compHtmTemplate = '';
     compCssTemplate = '-SKIP-';
 
-    fileExists(srcJsFile, (err, exists) => {
-      if (exists) {
-        compJsTemplate  = fs.readFileSync(srcJsFile).toString();
+    try {
+      if (await fs.pathExists(srcJsFile)) {
+        compJsTemplate = await fs.readFile(srcJsFile, 'utf8');
       }
 
-      fileExists(srcHtmFile, (err, exists) => {
-        if (exists) {
-          compHtmTemplate = fs.readFileSync(srcHtmFile).toString();
-        }
+      if (await fs.pathExists(srcHtmFile)) {
+        compHtmTemplate = await fs.readFile(srcHtmFile, 'utf8');
+      }
 
-        fileExists(srcCssFile, (err, exists) => {
-          if (exists) {
-            compCssTemplate = fs.readFileSync(srcCssFile).toString()
-          }
+      if (await fs.pathExists(srcCssFile)) {
+        compCssTemplate = await fs.readFile(srcCssFile, 'utf8');
+      }
 
-          var componentsArray = componentNames.split(',');
-          componentsArray.forEach(componentName => {
-            createComponent(componentName);
-          });
-
-        });
-
-      });
-
-    });
-
+      const componentsArray = componentNames.split(',');
+      for (const componentName of componentsArray) {
+        await createComponent(componentName);
+      }
+    } catch (err) {
+      console.error('Error creating components:', err);
+    }
   }
 }
 
 function isValidComponent(componentName){
-  var isValid = false,
-      reservedCompNames = 'api,debug,lang',
-      hasInvalidChars   = (/[^a-z0-9\/]/gi).test(componentName),
-      isReservedName    = (reservedCompNames.indexOf(componentName)>=0);
+  let isValid = false;
+  const reservedCompNames = 'api,debug,lang';
+  const hasInvalidChars   = (/[^a-z0-9\/]/gi).test(componentName);
+  const isReservedName    = (reservedCompNames.indexOf(componentName)>=0);
+  
   if (hasInvalidChars) {
     console.log('Invalid component name ['+componentName+']. Component name must be alpha-numeric ONLY [a-z A-Z 0-9].');
   } else if (!(/^([a-z])/i.test(componentName))) {
@@ -358,126 +459,108 @@ function isValidComponent(componentName){
 
 function createParentFolder(folderPath){
   if (folderPath) {
-    folderPathArr = folderPath.substring(folderPath.indexOf(':')+1).replace(/\\/g,'/').split('/');
-    var pFldr='/';
-    for(var idx=0; idx<folderPathArr.length-1; idx++){
+    const folderPathArr = folderPath.substring(folderPath.indexOf(':')+1).replace(/\\/g,'/').split('/');
+    let pFldr = path.isAbsolute(folderPath) ? path.parse(folderPath).root : '/';
+    
+    for(let idx = 0; idx < folderPathArr.length - 1; idx++){
       if (folderPathArr[idx]) {
         pFldr = path.resolve(pFldr, folderPathArr[idx]);
         try {
-          fs.mkdirSync(pFldr, (err)=>{
-            if (err) {
-              if (err.code === 'EEXIST') {
-                return;
-              } else if (err.code === 'ENOENT') {
-                console.error('Folder ['+pFldr+'] not found!');
-                return;
-              }
-              throw err;
-            }
-            return;
-          });
-
-        } catch(e){};
-
+          fs.ensureDirSync(pFldr);
+        } catch(e) {
+          // Directory already exists or other error
+        }
       }
     }
   }
 }
 
-function createComponent(componentName){
+async function createComponent(componentName){
   if (isValidComponent(componentName)) {
     componentName = componentName.replace(/[^a-z0-9]/gi, '_');
-    var componentPath = componentName.replace(/[^a-z0-9]/gi, '/'),
-        newCompFldr   = path.resolve(appName, 'app', 'components', componentPath),
-        componentFile = componentName;
+    const componentPath = componentName.replace(/[^a-z0-9]/gi, '/');
+    const newCompFldr   = path.resolve(appName, 'app', 'components', componentPath);
+    let componentFile = componentName;
 
     if ((/[^a-z0-9]/gi).test(componentName)) {
-      var xPath = componentName.split('_');
+      const xPath = componentName.split('_');
       componentFile = xPath[xPath.length-1];
     }
-    var newHtmFile   = path.resolve(newCompFldr, componentFile+'.html'),
-        newCssFile   = path.resolve(newCompFldr, componentFile+'.css'),
-        newJsFile    = path.resolve(newCompFldr, componentFile+'.js');
+    
+    const newHtmFile = path.resolve(newCompFldr, componentFile+'.html');
+    const newCssFile = path.resolve(newCompFldr, componentFile+'.css');
+    const newJsFile  = path.resolve(newCompFldr, componentFile+'.js');
 
-    var compHTM = compHtmTemplate.replace(/componentXpath/g, componentPath).replace(/componentXfile/g, componentFile).replace(/componentX/g, componentName),
-        compCSS = compCssTemplate.replace(/componentXpath/g, componentPath).replace(/componentXfile/g, componentFile).replace(/componentX/g, componentName),
-        compJS  = compJsTemplate.replace(/componentXpath/g, componentPath).replace(/componentXfile/g, componentFile).replace(/componentX/g, componentName);
+    const compHTM = compHtmTemplate.replace(/componentXpath/g, componentPath).replace(/componentXfile/g, componentFile).replace(/componentX/g, componentName);
+    const compCSS = compCssTemplate.replace(/componentXpath/g, componentPath).replace(/componentXfile/g, componentFile).replace(/componentX/g, componentName);
+    const compJS  = compJsTemplate.replace(/componentXpath/g, componentPath).replace(/componentXfile/g, componentFile).replace(/componentX/g, componentName);
 
     createParentFolder(newCompFldr);
 
-    fs.mkdir(newCompFldr, (err)=>{
-      if (err) {
-        if (err.code === 'EEXIST') {
-          console.error('Component ['+componentPath+'] already exists!');
-          return;
-        } else if (err.code === 'ENOENT') {
-          console.error('SPA ['+appName+'] not available!');
-          createApp();
-          return;
-        }
-        throw err;
-      }
+    try {
+      await fs.ensureDir(newCompFldr);
       console.log('Creating a new component: '+componentPath);
 
-      //Create css
-      if (compCSS != '-SKIP-') {
-        fs.writeFile(newCssFile, compCSS, function(err){
-          if (err) throw err;
-        });
+      // Create files
+      if (compCSS !== '-SKIP-') {
+        await fs.writeFile(newCssFile, compCSS);
       }
 
-      //create html
-      fs.writeFile(newHtmFile, compHTM, function(err){
-        if (err) throw err;
-      });
+      await fs.writeFile(newHtmFile, compHTM);
+      await fs.writeFile(newJsFile, compJS);
 
-      //create js
-      fs.writeFile(newJsFile, compJS, function(err){
-        if (err) throw err;
-      });
-
-    });
-
-  }//else (isValid=false) => Invalid componentName
-}
-
-//-----------------------------------------------
-function useCustomAppBundle(){
-  if (customAppBundle) {
-    logMsg('Updating Component Bundle with '+customAppBundle+'', 1);
-    var customAppBundleSrc = path.resolve(customAppBundle);
-    fileExists(customAppBundleSrc, (err, exists) => {
-      if (err) throw err;
-      if (exists) {
-        fs.copyFile(customAppBundleSrc, appZipFile, (err) => {
-          if (err) throw err;
-          logMsg('Custom App Bundle is ready to use.', 1);
-        });
+    } catch (err) {
+      if (err.code === 'EEXIST') {
+        console.error('Component ['+componentPath+'] already exists!');
+      } else if (err.code === 'ENOENT') {
+        console.error('SPA ['+appName+'] not available!');
+        await createApp();
+      } else {
+        throw err;
       }
-    });
+    }
   }
 }
 
-function useCustomComponentBundle(){
+//-----------------------------------------------
+async function useCustomAppBundle(){
+  if (customAppBundle) {
+    logMsg('Updating Component Bundle with '+customAppBundle+'', 1);
+    const customAppBundleSrc = path.resolve(customAppBundle);
+    try {
+      const exists = await fs.pathExists(customAppBundleSrc);
+      if (exists) {
+        await fs.copy(customAppBundleSrc, appZipFile);
+        logMsg('Custom App Bundle is ready to use.', 1);
+      }
+    } catch (err) {
+      console.error('Error using custom app bundle:', err);
+    }
+  }
+}
+
+async function useCustomComponentBundle(){
   if (customCompBundle) {
     logMsg('Updating Component Bundle with '+customCompBundle+'', 1);
-
-    var customCompBundleSrc = path.resolve(customCompBundle);
-    fileExists(customCompBundleSrc, (err, exists) => {
-      if (err) throw err;
+    const customCompBundleSrc = path.resolve(customCompBundle);
+    
+    try {
+      const exists = await fs.pathExists(customCompBundleSrc);
       if (exists) {
-        var srcCompFldr = path.resolve(spaDownloadFldr, 'componentX')
-          , oldCssFile  = path.resolve(srcCompFldr, 'componentX.css');
+        const srcCompFldr = path.resolve(spaDownloadFldr, 'componentX');
+        const oldCssFile = path.resolve(srcCompFldr, 'componentX.css');
+        
         try {
-          fs.unlinkSync(oldCssFile);
-        } catch(err) { }
-        unzip(customCompBundleSrc, {dir: path.resolve(spaDownloadFldr, 'componentX') }, function(){
-          fs.copyFile(customCompBundleSrc, compZipFile, (err) => {
-            if (err) throw err;
-            logMsg('Custom Component Bundle is ready to use.', 1);
-          });
-        });
+          await fs.remove(oldCssFile);
+        } catch(err) { /* Ignore if file doesn't exist */ }
+        
+        await fs.ensureDir(srcCompFldr);
+        await unzip(customCompBundleSrc, {dir: srcCompFldr});
+        await fs.copy(customCompBundleSrc, compZipFile);
+        logMsg('Custom Component Bundle is ready to use.', 1);
       }
-    });
+    } catch (err) {
+      console.error('Error using custom component bundle:', err);
+    }
   }
 }
